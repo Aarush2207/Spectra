@@ -18,6 +18,13 @@ import {
 import { createWorker } from 'tesseract.js';
 import { AnalysisResult } from '../types/index';
 import { analyzeMessage, inspectUrl } from '../lib/detectionEngine';
+import { 
+  validateTextInput, 
+  validateUrlInput, 
+  validateImageFileInput, 
+  validateOcrExtraction, 
+  StandardValidationResult 
+} from '../lib/inputValidation';
 
 interface ScannerInterfaceProps {
   onAnalysisComplete: (result: AnalysisResult) => void;
@@ -73,7 +80,7 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
   // Text mode state
   const [textContent, setTextContent] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationResult, setValidationResult] = useState<StandardValidationResult | null>(null);
 
   // URL mode state
   const [urlContent, setUrlContent] = useState('');
@@ -93,7 +100,7 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
       const text = await navigator.clipboard.readText();
       if (text) {
         setTextContent(text);
-        setValidationError(null);
+        setValidationResult(null);
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 2000);
       }
@@ -102,36 +109,39 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
     }
   };
 
-  // Perform Text Analysis (Real-time latency, zero fake delays)
+  // Perform Text Analysis with robust meaningfulness validation
   const handleAnalyzeText = () => {
-    const trimmed = textContent.trim();
-    if (!trimmed) {
-      setValidationError('Please enter or paste a message to analyze.');
+    const valRes = validateTextInput(textContent);
+    if (!valRes.valid) {
+      setValidationResult(valRes);
       return;
     }
-    setValidationError(null);
+
+    setValidationResult(null);
     setIsProcessing(true);
 
-    // Yield to render frame before synchronous analysis to ensure smooth UI update
     requestAnimationFrame(() => {
-      const result = analyzeMessage(trimmed, 'text');
+      const targetText = valRes.metadata?.cleanedText || textContent.trim();
+      const result = analyzeMessage(targetText, 'text');
       onAnalysisComplete(result);
       setIsProcessing(false);
     });
   };
 
-  // Perform URL Analysis (Real-time latency)
+  // Perform URL Analysis with security and protocol validation
   const handleAnalyzeUrl = () => {
-    const trimmed = urlContent.trim();
-    if (!trimmed) {
-      setValidationError('Please enter a valid URL to inspect.');
+    const valRes = validateUrlInput(urlContent);
+    if (!valRes.valid) {
+      setValidationResult(valRes);
       return;
     }
-    setValidationError(null);
+
+    setValidationResult(null);
     setIsProcessing(true);
 
     requestAnimationFrame(() => {
-      const result = analyzeMessage(trimmed, 'url');
+      const targetUrl = valRes.metadata?.normalizedUrl || urlContent.trim();
+      const result = analyzeMessage(targetUrl, 'url');
       onAnalysisComplete(result);
       setIsProcessing(false);
     });
@@ -186,20 +196,14 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
     });
   };
 
-  // Handle Image File Selection & OCR with accurate duration tracking
+  // Handle Image File Selection & OCR with comprehensive validation
   const processImageFile = async (file: File) => {
-    setValidationError(null);
+    setValidationResult(null);
 
-    // 1. File Type Validation
-    if (!file.type.startsWith('image/')) {
-      setValidationError(`Unsupported file format (${file.type || 'unknown'}). Please upload a valid PNG, JPG, or WEBP screenshot.`);
-      return;
-    }
-
-    // 2. File Size Validation (Max 15MB)
-    const maxSizeBytes = 15 * 1024 * 1024;
-    if (file.size > maxSizeBytes) {
-      setValidationError(`File is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum allowed upload size is 15MB.`);
+    // 1. Pre-OCR Validation (File format, size, decodability)
+    const fileValidation = await validateImageFileInput(file);
+    if (!fileValidation.valid) {
+      setValidationResult(fileValidation);
       return;
     }
 
@@ -237,9 +241,18 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
         setOcrProgress(100);
         setOcrStatus('OCR extraction complete.');
 
-        // Run detection on extracted text with verified ocrDuration
+        // 2. Post-OCR Meaningfulness & Readability Validation
+        const ocrValidation = validateOcrExtraction(cleanedText, conf);
+        if (!ocrValidation.valid) {
+          setValidationResult(ocrValidation);
+          setIsProcessing(false);
+          // Do NOT generate a threat score or scam report when validation fails!
+          return;
+        }
+
+        // Run detection on verified meaningful extracted text
         const result = analyzeMessage(
-          cleanedText || 'Unreadable visual content or low-resolution blank image detected.',
+          cleanedText,
           'image',
           rawBase64,
           conf,
@@ -250,7 +263,13 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
 
       } catch (err) {
         console.error('OCR Error:', err);
-        setValidationError('OCR neural engine encountered an error parsing this image.');
+        setValidationResult({
+          valid: false,
+          inputType: 'image',
+          reasonCode: 'VALIDATION_SERVICE_ERROR',
+          message: 'The neural OCR engine encountered an unexpected error processing this image.',
+          suggestion: 'Please try uploading a different image or enter the text manually.',
+        });
         setIsProcessing(false);
       }
     };
@@ -267,7 +286,7 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
 
   // Diverse test screenshots for audit verification
   const handleSampleScreenshot = (sampleType: 'bank_dark' | 'courier_light' | 'noisy_job' | 'blurry_doc') => {
-    setValidationError(null);
+    setValidationResult(null);
     const canvas = document.createElement('canvas');
     canvas.width = 640;
     canvas.height = 360;
@@ -373,7 +392,7 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
       {/* 1. INPUT MODE TABS */}
       <div className="flex border-b border-[#a9a9a6]/30 bg-[#f2f2f1]/60 p-2 sm:p-3 gap-2">
         <button
-          onClick={() => { setActiveTab('text'); setValidationError(null); }}
+          onClick={() => { setActiveTab('text'); setValidationResult(null); }}
           className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 ${
             activeTab === 'text'
               ? 'bg-white text-[#1d1d1d] shadow-sm border border-[#a9a9a6]/30'
@@ -385,7 +404,7 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
         </button>
 
         <button
-          onClick={() => { setActiveTab('image'); setValidationError(null); }}
+          onClick={() => { setActiveTab('image'); setValidationResult(null); }}
           className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 ${
             activeTab === 'image'
               ? 'bg-white text-[#1d1d1d] shadow-sm border border-[#a9a9a6]/30'
@@ -397,7 +416,7 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
         </button>
 
         <button
-          onClick={() => { setActiveTab('url'); setValidationError(null); }}
+          onClick={() => { setActiveTab('url'); setValidationResult(null); }}
           className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 ${
             activeTab === 'url'
               ? 'bg-white text-[#1d1d1d] shadow-sm border border-[#a9a9a6]/30'
@@ -409,11 +428,47 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
         </button>
       </div>
 
-      {/* ERROR BANNER IF PRESENT */}
-      {validationError && (
-        <div className="mx-6 sm:mx-8 mt-6 p-3.5 bg-[#fef3f2] border border-[#d92d20]/30 rounded-2xl flex items-center gap-3 text-xs text-[#d92d20] font-medium">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 text-[#d92d20]" />
-          <span>{validationError}</span>
+      {/* COMPREHENSIVE INPUT VALIDATION ADVISORY BANNER */}
+      {validationResult && !validationResult.valid && (
+        <div className="mx-6 sm:mx-8 mt-6 p-4 bg-[#18181b] border border-[#8055e8]/40 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-md animate-fade-in">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-[#8055e8]/15 border border-[#8055e8]/30 text-[#8055e8] shrink-0 mt-0.5">
+              <AlertCircle className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#8055e8]/20 text-[#b9abff] border border-[#8055e8]/30">
+                  {validationResult.reasonCode}
+                </span>
+                <span className="text-white font-semibold text-xs font-sans">
+                  Input Validation Advisory
+                </span>
+              </div>
+              <p className="text-white/85 leading-relaxed font-sans">
+                {validationResult.message}
+              </p>
+              {validationResult.suggestion && (
+                <p className="text-[#a9a9a6] text-[11px] mt-1 font-mono">
+                  💡 {validationResult.suggestion}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* If OCR was low confidence and some text was read, offer manual edit */}
+          {validationResult.metadata?.cleanedText && (
+            <button
+              onClick={() => {
+                setTextContent(validationResult.metadata?.cleanedText || '');
+                setActiveTab('text');
+                setValidationResult(null);
+              }}
+              className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#8055e8] hover:bg-[#6c42d6] text-white font-medium text-xs transition-colors self-end sm:self-center"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Enter / Edit Manually</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -445,7 +500,7 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
             <div className="relative">
               <textarea
                 value={textContent}
-                onChange={(e) => { setTextContent(e.target.value); setValidationError(null); }}
+                onChange={(e) => { setTextContent(e.target.value); setValidationResult(null); }}
                 placeholder="Example: [CHASE ALERT] Your account access will be blocked within 2 hours due to unauthorized activity. Verify immediately: https://chase-security-login.xyz/verify..."
                 rows={5}
                 className="w-full p-4 rounded-2xl border border-[#a9a9a6]/40 bg-[#fbfbfa] text-[#1d1d1d] placeholder-[#a9a9a6] text-sm focus:outline-none focus:ring-2 focus:ring-[#8055e8]/50 focus:border-[#8055e8] transition-all font-sans resize-y"
@@ -464,7 +519,7 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
                 {TEXT_PRESETS.map((preset, idx) => (
                   <button
                     key={idx}
-                    onClick={() => { setTextContent(preset.text); setValidationError(null); }}
+                    onClick={() => { setTextContent(preset.text); setValidationResult(null); }}
                     className="text-xs bg-[#f2f2f1] hover:bg-[#e4e4e2] text-[#1d1d1d] px-3 py-1.5 rounded-lg border border-[#a9a9a6]/30 transition-all text-left flex items-center gap-1.5 active:scale-95"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-[#8055e8]" />
@@ -653,7 +708,7 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
                 <input
                   type="text"
                   value={urlContent}
-                  onChange={(e) => { setUrlContent(e.target.value); setValidationError(null); }}
+                  onChange={(e) => { setUrlContent(e.target.value); setValidationResult(null); }}
                   placeholder="https://chase-security-login.xyz/verify/account"
                   className="flex-1 p-3.5 rounded-2xl border border-[#a9a9a6]/40 bg-[#fbfbfa] text-[#1d1d1d] placeholder-[#a9a9a6] text-sm focus:outline-none focus:ring-2 focus:ring-[#8055e8]/50 focus:border-[#8055e8] font-mono"
                 />
@@ -678,7 +733,7 @@ export const ScannerInterface: React.FC<ScannerInterfaceProps> = ({
                   {URL_PRESETS.map((p, idx) => (
                     <button
                       key={idx}
-                      onClick={() => { setUrlContent(p.url); setValidationError(null); }}
+                      onClick={() => { setUrlContent(p.url); setValidationResult(null); }}
                       className="text-xs bg-[#f2f2f1] hover:bg-[#e4e4e2] text-[#1d1d1d] px-3 py-1.5 rounded-lg border border-[#a9a9a6]/30 flex items-center gap-1.5"
                     >
                       <LinkIcon className="w-3 h-3 text-[#8055e8]" />

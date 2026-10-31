@@ -38,6 +38,11 @@ import {
 
 import { RobotState } from '../types/robot';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { 
+  validateTextInput, 
+  validateImageFileInput, 
+  validateOcrExtraction 
+} from '../lib/inputValidation';
 
 interface SpectraAIChatProps {
   initialTransferredResult?: AnalysisResult | null;
@@ -315,12 +320,48 @@ export const SpectraAIChat: React.FC<SpectraAIChatProps> = ({
     try {
       // Branch 1: Multimodal Screenshot Analysis with OCR + AI Enhancement
       if (capturedImage && capturedPreview) {
+        // Pre-OCR Image Integrity Validation
+        const fileCheck = await validateImageFileInput(capturedImage);
+        if (!fileCheck.valid) {
+          const valMsg: ChatMessage = {
+            id: `msg-${Date.now()}-validation`,
+            sender: 'spectra',
+            text: `⚠️ **Screenshot Validation Notice** (${fileCheck.reasonCode})\n\n${fileCheck.message}\n\n💡 *${fileCheck.suggestion}*`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            inputType: 'image',
+            imagePreview: capturedPreview,
+          };
+          setMessages((prev) => [...prev, valMsg]);
+          setIsProcessing(false);
+          setProcessingStage(null);
+          onRobotStateChange?.('idle');
+          return;
+        }
+
         setProcessingStage('Extracting text from screenshot via Tesseract OCR...');
         setOcrStatus('Extracting text from screenshot via Tesseract OCR...');
         const ocr = await extractTextFromImage(capturedImage);
         setOcrStatus(null);
 
-        const extractedText = ocr.text || 'Unreadable visual content or low-resolution image detected.';
+        // Post-OCR Meaningfulness Validation
+        const ocrCheck = validateOcrExtraction(ocr.text, ocr.confidence);
+        if (!ocrCheck.valid) {
+          const valMsg: ChatMessage = {
+            id: `msg-${Date.now()}-validation`,
+            sender: 'spectra',
+            text: `⚠️ **Screenshot Validation Notice** (${ocrCheck.reasonCode})\n\n${ocrCheck.message}\n\n💡 *${ocrCheck.suggestion}*`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            inputType: 'image',
+            imagePreview: capturedPreview,
+          };
+          setMessages((prev) => [...prev, valMsg]);
+          setIsProcessing(false);
+          setProcessingStage(null);
+          onRobotStateChange?.('idle');
+          return;
+        }
+
+        const extractedText = ocr.text.trim();
         const result = analyzeMessage(
           extractedText,
           'image',
@@ -393,7 +434,23 @@ export const SpectraAIChat: React.FC<SpectraAIChatProps> = ({
         return;
       }
 
-      // Branch 2: Text Messages
+      // Branch 2: Text Messages & Queries
+      const textValidation = validateTextInput(text);
+      if (!textValidation.valid) {
+        const valMsg: ChatMessage = {
+          id: `msg-${Date.now()}-validation`,
+          sender: 'spectra',
+          text: `⚠️ **Input Validation Notice** (${textValidation.reasonCode})\n\n${textValidation.message}\n\n💡 *${textValidation.suggestion}*`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          inputType: 'text',
+        };
+        setMessages((prev) => [...prev, valMsg]);
+        setIsProcessing(false);
+        setProcessingStage(null);
+        onRobotStateChange?.('idle');
+        return;
+      }
+
       const urls = extractUrls(text);
       // Only classify as specific message analysis if there are actual URLs or explicit forwarded message text
       const isAnalyzingSpecificMessage = 

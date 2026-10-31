@@ -54,7 +54,34 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
             </ul>
           </div>
 
-          <div className="text-[11px] font-mono text-[#a9a9a6] pt-2">
+          {/* Official Website & Repository */}
+          <div className="p-4 rounded-2xl bg-white border border-[#8055e8]/30 shadow-sm space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono uppercase tracking-wider text-[#8055e8] font-bold flex items-center gap-1.5">
+                <Terminal className="w-3.5 h-3.5" />
+                Official Website & Repository
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8055e8]/10 text-[#8055e8] font-semibold">
+                Open Source
+              </span>
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1">
+              <a
+                href="https://github.com/Aarush2207/Spectra"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-mono font-medium text-[#1d1d1d] hover:text-[#8055e8] flex items-center gap-1.5 transition-colors underline underline-offset-2 break-all"
+              >
+                https://github.com/Aarush2207/Spectra
+                <Sparkles className="w-3.5 h-3.5 text-[#8055e8] shrink-0" />
+              </a>
+              <span className="text-[11px] text-[#555555]">
+                v1.0.0 Production Build
+              </span>
+            </div>
+          </div>
+
+          <div className="text-[11px] font-mono text-[#a9a9a6] pt-1">
             Engineered with React 19, TypeScript, Three.js WebGL Cloth Physics, Tesseract.js Neural OCR, and Tailwind CSS.
           </div>
         </div>

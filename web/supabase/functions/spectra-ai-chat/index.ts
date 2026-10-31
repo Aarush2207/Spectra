@@ -491,6 +491,27 @@ export async function handleRequest(req: Request): Promise<Response> {
     return errorResponse("Message or scanner context is required.", 400, "AI_INVALID_RESPONSE");
   }
 
+  // Server-Side Input Meaningfulness Validation
+  if (message && !scannerContext) {
+    const trimmed = message.trim();
+    const isRepeated = /^([a-zA-Z0-9])\1{5,}$/.test(trimmed);
+    const isSymbolsOnly = !/[a-zA-Z0-9\u0900-\u097F\u4E00-\u9FFF]/.test(trimmed);
+    const isKeyboardMash = /^(?:asdfghjkl|qwertyuiop|zxcvbnm|1234567890)$/i.test(trimmed.toLowerCase());
+
+    if (isRepeated || isSymbolsOnly || isKeyboardMash) {
+      return errorResponse(
+        "Submitted text contains no analyzable or meaningful communication. Please provide an SMS, email, WhatsApp message, or question.",
+        400,
+        "AI_INVALID_RESPONSE",
+        {
+          valid: false,
+          reasonCode: "MEANINGLESS_TEXT",
+          suggestion: "Paste an SMS, email, WhatsApp message, or question."
+        }
+      );
+    }
+  }
+
   if (message.length > 10_000) {
     return errorResponse("Message exceeds maximum length of 10,000 characters.", 400, "AI_INVALID_RESPONSE");
   }
