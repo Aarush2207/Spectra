@@ -412,7 +412,27 @@ export default function App() {
         </div>
 
         <div className="max-w-7xl mx-auto mt-6 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-white/35">
-          <span>© 2026 SPECTRA Intelligence Platform. Built for Hackathon Excellence.</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span>© 2026 SPECTRA Intelligence Platform. Built for Hackathon Excellence.</span>
+            <span>•</span>
+            <a 
+              href="https://spectra-scam.vercel.app/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[#b9abff] hover:underline"
+            >
+              spectra-scam.vercel.app
+            </a>
+            <span>•</span>
+            <a 
+              href="https://github.com/Aarush2207/Spectra" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="hover:text-white transition-colors"
+            >
+              GitHub Source
+            </a>
+          </div>
           <span>Disclaimer: Automated probabilistic risk assessment, not a guarantee of fraud or authenticity.</span>
         </div>
       </footer>
