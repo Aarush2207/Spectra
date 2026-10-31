@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --spectra-bg: #050506;
+    --spectra-surface: #0b0b10;
+    --spectra-surface-subtle: #12121a;
+    --spectra-dark-glass: rgba(18, 18, 25, 0.72);
+    --spectra-ink: #ffffff;
+    --spectra-secondary: rgba(255, 255, 255, 0.62);
+    --spectra-muted: rgba(255, 255, 255, 0.38);
+    --spectra-hairline: rgba(255, 255, 255, 0.08);
+    --spectra-violet: #8055e8;
+    --spectra-violet-dark: #5633b7;
+    --spectra-lavender: #b9abff;
+    --spectra-orange: #ff9a6a;
+    --spectra-robot-shell: #eeebe6;
+    --spectra-robot-face: #08080c;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    background-color: var(--spectra-bg);
+  }
+
+  body {
+    background-color: var(--spectra-bg);
+    color: var(--spectra-ink);
+    font-family: 'Schibsted Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Custom black-stage editorial scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #050506;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8055e8;
+}
+
+/* Hairline utilities */
+.hairline-border {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.hairline-border-t {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.hairline-border-b {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Holographic shimmer effect */
+.holographic-text {
+  background: linear-gradient(135deg, #ffffff 0%, #b9abff 50%, #8055e8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.holographic-badge {
+  background: linear-gradient(135deg, rgba(128, 85, 232, 0.15) 0%, rgba(86, 51, 183, 0.25) 100%);
+  border: 1px solid rgba(128, 85, 232, 0.4);
+}
+
+/* Glass & Card styles */
+.spectra-surface {
+  background: #0b0b10;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.6);
+}
+
+.spectra-card-interactive {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.spectra-card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgba(128, 85, 232, 0.4);
+  box-shadow: 0 12px 30px -4px rgba(128, 85, 232, 0.15);
+}
+
+/* Nova Atmospheric Radial Glow */
+.nova-stage-glow {
+  background: radial-gradient(circle at center, rgba(128, 85, 232, 0.18) 0%, rgba(86, 51, 183, 0.08) 35%, rgba(5, 5, 6, 0) 70%);
+}
