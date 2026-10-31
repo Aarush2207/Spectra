@@ -304,12 +304,20 @@ const DETECTION_RULES: RuleDefinition[] = [
     weight: 35
   },
   {
+    id: 'fin_advance_fee_lottery',
+    category: 'FINANCIAL',
+    severity: 'critical',
+    regex: /\b(you\s+(have\s+)?won\s+([$€£₹]|rs\.?|\d)|claim\s+(your\s+)?(prize|reward|lottery|cashback|jackpot)|lottery\s+winner|selected\s+to\s+receive\s+([$€£₹]|rs\.?)|congratulations.{0,30}(won|winner|selected))\b/i,
+    explanation: (m) => `Unsolicited lottery, prize, or jackpot notification ("${m}"), characteristic of advance-fee fraud lures.`,
+    weight: 35
+  },
+  {
     id: 'fin_fake_refund_fee',
     category: 'FINANCIAL',
     severity: 'high',
-    regex: /\b((customs|delivery|clearance|redelivery|processing)\s+fee|small\s+fee\s+of\s+\$?\d+(\.\d{2})?|charged\s+\$?\d{2,4}\s+for\s+(geek\s+squad|norton|mcafee|subscription)|accidental\s+refund|overpayment\s+refund)\b/i,
-    explanation: (m) => `Manufactures a fraudulent charge, invoice, or package delivery fee ("${m}").`,
-    weight: 28
+    regex: /\b((customs|delivery|clearance|redelivery|processing|registration)\s+fees?|small\s+fee\s+of\s+([$€£₹]|rs\.?)\s*\d+(\.\d{2})?|charged\s+([$€£₹]|rs\.?)\s*\d{2,4}\s+for\s+(geek\s+squad|norton|mcafee|subscription)|accidental\s+refund|overpayment\s+refund|pay\s+([$€£₹]|rs\.?)\s*\d+\s*(fees?|processing|registration|to\s+claim|to\s+receive)?)\b/i,
+    explanation: (m) => `Manufactures a fraudulent charge, invoice, registration, or processing fee ("${m}").`,
+    weight: 32
   },
   {
     id: 'fin_check_deposit',

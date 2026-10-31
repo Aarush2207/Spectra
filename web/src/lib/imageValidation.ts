@@ -266,7 +266,8 @@ export function validateOcrResult(
   const hasSuspiciousTokens = textValidation.containsSuspiciousTokens;
   const matchesCommunicationContext = COMMUNICATION_CONTEXT_PATTERNS.some((p) => p.test(trimmed));
 
-  if (!hasTechnical && !hasSuspiciousTokens && !matchesCommunicationContext && wordCount < 5) {
+  // Only reject if it's completely isolated random words (< 2 words) with zero communication cues
+  if (!hasTechnical && !hasSuspiciousTokens && !matchesCommunicationContext && wordCount < 2) {
     return {
       valid: false,
       inputType: 'image',

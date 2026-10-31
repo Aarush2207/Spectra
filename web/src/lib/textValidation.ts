@@ -53,9 +53,10 @@ const SECURITY_AND_COMMUNICATION_TOKENS = new Set([
 
   // Indian Payment & Hinglish tokens
   'otp', 'upi', 'pin', 'pan', 'aadhaar', 'kyc', 'paytm', 'gpay', 'phonepe',
-  'paisa', 'paise', 'bhai', 'khata', 'bhejo', 'bheja', 'karo', 'turant',
+  'paisa', 'paise', 'bhai', 'khata', 'bhejo', 'bheja', 'bhej', 'karo', 'turant',
+  'mujhe', 'apna', 'de', 'do', 'dena', 'lelo', 'batana',
   'inam', 'yojna', 'namaste', 'shukriya', 'jaldi', 'naukri', 'gadi', 'rupay',
-  'rupee', 'rupees', 'rs', 'inr',
+  'rupee', 'rupees', 'rs', 'inr', 'order', 'shipped',
 
   // Urgency & Psychological pressure
   'urgent', 'immediately', 'suspended', 'blocked', 'frozen', 'expired',
@@ -151,18 +152,39 @@ export function validateText(rawInput: string): TextValidationResult {
   }
 
   // 5. Length Check
-  // Extremely short strings (< 4 chars) without technical tokens or recognizable words
-  if (trimmed.length < 4 && !containsTechnical && !hasDevanagari && !hasCjk) {
+  // Single characters without technical indicators are too short
+  if (trimmed.length < 2 && !containsTechnical && !hasDevanagari && !hasCjk) {
+    return {
+      valid: false,
+      inputType: 'text',
+      reasonCode: 'INPUT_TOO_SHORT',
+      message: 'The submitted message is too short to extract meaningful threat signals.',
+      suggestion: 'Please paste the full text of the message, alert, or offer.',
+    };
+  }
+
+  // For 2-3 character inputs, ensure they represent recognizable words or communication
+  if (trimmed.length <= 3 && !containsTechnical && !hasDevanagari && !hasCjk) {
     const uppercase = trimmed.toUpperCase();
-    const allowedShortWords = new Set(['OTP', 'PIN', 'UPI', 'SMS', 'IRS', 'ATM', 'URL', 'YES', 'NO', 'BUY', 'PAY']);
+    const allowedShortWords = new Set([
+      'HI', 'HEY', 'HELO', 'OK', 'NO', 'YES', 'BYE',
+      'OTP', 'PIN', 'UPI', 'KYC', 'PAN', 'SMS', 'IRS', 'ATM',
+      'URL', 'APP', 'NET', 'WEB', 'PAY', 'BUY', 'TAX', 'WIN',
+      'JOB', 'SOS', 'HR', 'AD', 'AI', 'CV', 'ID', 'DO', 'GO',
+      'ME', 'MY', 'WE', 'HE', 'TO', 'IN', 'ON', 'AT', 'IS', 'AM', 'AS', 'IF', 'OR', 'SO'
+    ]);
     if (!allowedShortWords.has(uppercase)) {
-      return {
-        valid: false,
-        inputType: 'text',
-        reasonCode: 'INPUT_TOO_SHORT',
-        message: 'The submitted message is too short to extract meaningful threat signals.',
-        suggestion: 'Please paste the full text of the message, alert, or offer.',
-      };
+      // If it contains at least one vowel and is not a keyboard mash, accept
+      const hasVowel = /[aeiouy]/i.test(trimmed);
+      if (!hasVowel) {
+        return {
+          valid: false,
+          inputType: 'text',
+          reasonCode: 'MEANINGLESS_TEXT',
+          message: 'The submitted input contains no recognizable words or communicative content.',
+          suggestion: 'Please paste the message or question you would like to analyze.',
+        };
+      }
     }
   }
 

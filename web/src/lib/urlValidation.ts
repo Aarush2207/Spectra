@@ -44,25 +44,28 @@ const KNOWN_SHORTENERS = new Set([
   'v.gd',
 ]);
 
-// Private and dangerous IP ranges (SSRF protection)
+// Private and dangerous IP ranges & hostnames (SSRF protection)
 function isPrivateOrReservedIp(ip: string): boolean {
-  // IPv4 checks
-  const ipv4Match = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  // Strip brackets from IPv6 notation if present e.g. [::1] -> ::1
+  const clean = ip.replace(/^\[|\]$/g, '').toLowerCase().trim();
+
+  // 1. IPv4 checks
+  const ipv4Match = clean.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if (ipv4Match) {
     const [_, a, b, c, d] = ipv4Match.map(Number);
     if ([a, b, c, d].some((octet) => octet < 0 || octet > 255)) return true;
 
     // 0.0.0.0/8 (Current network)
     if (a === 0) return true;
-    // 10.0.0.0/8 (Private)
+    // 10.0.0.0/8 (Private RFC 1918)
     if (a === 10) return true;
-    // 127.0.0.0/8 (Loopback/localhost)
+    // 127.0.0.0/8 (Loopback / localhost)
     if (a === 127) return true;
-    // 169.254.0.0/16 (Link-local / AWS/GCP Metadata!)
+    // 169.254.0.0/16 (Link-local / AWS & Cloud Metadata endpoint!)
     if (a === 169 && b === 254) return true;
-    // 172.16.0.0/12 (Private)
+    // 172.16.0.0/12 (Private RFC 1918)
     if (a === 172 && b >= 16 && b <= 31) return true;
-    // 192.168.0.0/16 (Private)
+    // 192.168.0.0/16 (Private RFC 1918)
     if (a === 192 && b === 168) return true;
     // 224.0.0.0/4 (Multicast)
     if (a >= 224 && a <= 239) return true;
@@ -70,15 +73,42 @@ function isPrivateOrReservedIp(ip: string): boolean {
     if (a >= 240) return true;
   }
 
-  // Localhost aliases & IPv6 loopback
-  const lower = ip.toLowerCase();
+  // 2. IPv6 Loopback & Reserved ranges
   if (
-    lower === 'localhost' ||
-    lower === '::1' ||
-    lower === '[::1]' ||
-    lower.endsWith('.localhost') ||
-    lower.endsWith('.local') ||
-    lower.endsWith('.internal')
+    clean === '::1' ||
+    clean === '::' ||
+    clean === '0:0:0:0:0:0:0:1' ||
+    clean.startsWith('fe80:') || // IPv6 Link-Local
+    clean.startsWith('fc00:') || // IPv6 Unique Local Address (ULA)
+    clean.startsWith('fd00:')    // IPv6 Unique Local Address (ULA)
+  ) {
+    return true;
+  }
+
+  // 3. IPv4-Mapped IPv6 Addresses (e.g. ::ffff:127.0.0.1 or ::ffff:7f00:1)
+  if (clean.startsWith('::ffff:')) {
+    const mapped = clean.replace('::ffff:', '');
+    if (isPrivateOrReservedIp(mapped)) return true;
+    // Handle hex-encoded IPv4 (e.g. 7f00:1 for 127.0.0.1)
+    if (/^[0-9a-f]{1,4}:[0-9a-f]{1,4}$/i.test(mapped)) {
+      const parts = mapped.split(':');
+      const high = parseInt(parts[0], 16);
+      const byte1 = (high >> 8) & 0xff;
+      if (byte1 === 127 || byte1 === 10 || byte1 === 169) return true;
+    }
+  }
+
+  // 4. Localhost, Internal, and Cloud Metadata aliases
+  if (
+    clean === 'localhost' ||
+    clean === 'instance-data' ||
+    clean === 'metadata.google.internal' ||
+    clean === 'metadata' ||
+    clean.endsWith('.localhost') ||
+    clean.endsWith('.local') ||
+    clean.endsWith('.internal') ||
+    clean.endsWith('.lan') ||
+    clean.endsWith('.corp')
   ) {
     return true;
   }
