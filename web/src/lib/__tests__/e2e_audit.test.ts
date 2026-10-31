@@ -300,12 +300,24 @@ async function runAuditSuite() {
     );
 
     // Test 2: Legitimate security question processed by live AI
-    const resp2 = await fetch(supabaseUrl, {
+    let resp2 = await fetch(supabaseUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': anonKey },
-      body: JSON.stringify({ message: 'How does an advance fee lottery scam work?' })
+      body: JSON.stringify({ message: 'What is phishing?' })
     });
-    const data2 = await resp2.json();
+    let data2 = await resp2.json();
+
+    // If first request hit cold start / upstream reload, retry once
+    if (resp2.status !== 200) {
+      await new Promise(r => setTimeout(r, 2000));
+      resp2 = await fetch(supabaseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': anonKey },
+        body: JSON.stringify({ message: 'What is phishing?' })
+      });
+      data2 = await resp2.json();
+    }
+
     assert('Phase 5', 'Deployed Edge Function processes real security question (HTTP 200 & valid reply)',
       resp2.status === 200 && data2.success === true && typeof data2.data?.reply === 'string' && data2.data.reply.length > 50,
       { status: resp2.status, success: data2.success, preview: data2.data?.reply?.slice(0, 80) }

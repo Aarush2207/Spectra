@@ -311,7 +311,7 @@ export function buildOpenAIPayload(
       model,
       messages: formattedMessages,
       temperature: 0.2,
-      max_tokens: 4096,
+      max_tokens: 1500,
     },
   };
 }
@@ -653,9 +653,9 @@ export async function handleRequest(req: Request): Promise<Response> {
     requestBody = payload.body;
   }
 
-  // 7. Execute AI Provider Request with 30s Timeout
+  // 7. Execute AI Provider Request with 45s Timeout
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+  const timeoutId = setTimeout(() => controller.abort(), 45_000);
   let rawText = "";
 
   try {

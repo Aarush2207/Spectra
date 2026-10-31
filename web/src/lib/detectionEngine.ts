@@ -239,9 +239,17 @@ const DETECTION_RULES: RuleDefinition[] = [
     id: 'urg_account_block',
     category: 'URGENCY',
     severity: 'critical',
-    regex: /\b(account|card|profile|access|service|membership)\s+(is|has\s+been|was|will\s+be)?\s*(blocked|suspended|frozen|restricted|terminated|closed|locked|disabled)\b/i,
+    regex: /\b(account|card|profile|access|service|membership)\s+(is|has\s+been|was|will\s+be)?\s*(temporarily|permanently)?\s*(blocked|suspended|frozen|restricted|terminated|closed|locked|disabled)\b/i,
     explanation: (m) => `Threatens account shutdown or suspension ("${m}") to induce immediate panic.`,
     weight: 30
+  },
+  {
+    id: 'urg_utility_disconnection',
+    category: 'URGENCY',
+    severity: 'critical',
+    regex: /\b(electricity|power|bijli|water\s+supply|gas\s+connection)\s+(will\s+be|was)?\s*(disconnect(ed)?|cut\s*off|suspended|stop(ped)?)\s*(tonight|today|at\s+\d{1,2}[:.]\d{2}|within\s+\d+|immediately)|bijli\s+(kat|kaat|band)\s+kar|electricity\s+bill\s+not\s+paid|bill\s+update\s+karwao|contact\s+(our\s+)?(electricity\s+officer|bijli\s+adhikari)\b/i,
+    explanation: (m) => `Threatens imminent utility shutdown or electricity disconnection ("${m}") to coerce hasty emergency payment.`,
+    weight: 36
   },
   {
     id: 'urg_time_limit',
@@ -265,9 +273,17 @@ const DETECTION_RULES: RuleDefinition[] = [
     id: 'cred_otp_solicitation',
     category: 'CREDENTIALS',
     severity: 'critical',
-    regex: /\b((send|provide|verify|share|reply\s+with|confirm)\s+(your\s+)?(otp|one-time\s+password|passcode|6-digit\s+code|verification\s+code|2fa\s+code))\b/i,
+    regex: /\b((send|provide|verify|share|reply\s+with|confirm)\s+(your\s+)?(\d{1,2}[\s-]digit\s+)?(otp|one-time\s+password|passcode|code|verification\s+code|2fa\s+code))\b/i,
     explanation: (m) => `Directly requests a one-time authentication code ("${m}"). Legitimate service providers never request OTPs.`,
     weight: 40
+  },
+  {
+    id: 'cred_kyc_suspension',
+    category: 'CREDENTIALS',
+    severity: 'critical',
+    regex: /\b((pan\s*card|aadhaar|kyc)\s+(is\s+)?(expired|suspended|deactivated|pending|blocked|update\s+required)|update\s+(your\s+)?(kyc|pan|aadhaar)\s+(immediately|now|or\s+your\s+account\s+will\s+be)|kyc\s+verification\s+failed|complete\s+(your\s+)?kyc\s+at)\b/i,
+    explanation: (m) => `Pretends KYC or national ID expiration requires immediate renewal ("${m}") to extract sensitive identity credentials.`,
+    weight: 38
   },
   {
     id: 'cred_sensitive_info',
@@ -302,6 +318,22 @@ const DETECTION_RULES: RuleDefinition[] = [
     regex: /\b(bitcoin\s+atm|send\s+crypto|transfer\s+btc|eth\s+wallet|usdt\s+deposit|guaranteed\s+(crypto\s+)?returns?|double\s+your\s+bitcoin|deposit\s+usdt)\b/i,
     explanation: (m) => `Demands cryptocurrency deposit or promotes impossible investment multiplier scheme ("${m}").`,
     weight: 35
+  },
+  {
+    id: 'fin_upi_pin_fraud',
+    category: 'FINANCIAL',
+    severity: 'critical',
+    regex: /\b(enter\s+(your\s+)?upi\s*pin\s+to\s+(receive|claim|get)|approve\s+(upi\s+)?(collect|request)\s+to\s+receive|upi\s*pin\s+daalo\s+paise\s+milenge|enter\s+pin\s+to\s+receive\s+cashback|accept\s+request\s+to\s+credit\s+money)\b/i,
+    explanation: (m) => `Instructs user to enter a UPI PIN or accept a collect request to receive funds ("${m}"). In UPI architecture, PINs are strictly required to DEBIT money, never to receive funds.`,
+    weight: 42
+  },
+  {
+    id: 'fin_guaranteed_investment_returns',
+    category: 'FINANCIAL',
+    severity: 'critical',
+    regex: /\b(guaranteed\s+(daily|weekly|monthly)?\s*(returns?|profit|income)|double\s+your\s+money\s+in\s+\d+|invest\s+([$€£₹]|rs\.?)\s*\d+\s+and\s+get\s+([$€£₹]|rs\.?)\s*\d+|100%\s+guaranteed\s+(profit|earning)|risk[\s-]free\s+investment|sebi\s+approved\s+double\s+money)\b/i,
+    explanation: (m) => `Promises guaranteed investment yields or impossible capital doubling ("${m}"), standard for financial Ponzi schemes.`,
+    weight: 38
   },
   {
     id: 'fin_advance_fee_lottery',
@@ -341,9 +373,17 @@ const DETECTION_RULES: RuleDefinition[] = [
     id: 'imp_courier',
     category: 'IMPERSONATION',
     severity: 'high',
-    regex: /\b(usps|fedex|ups|dhl|royal\s+mail)\s*[:\-]?\s*.{0,30}(tracking|deliver(y|ed)?|package|parcel|cannot\s+be\s+delivered|address\s+(incomplete|missing)|redelivery|on\s+hold|pending\s+dispatch|reschedule\s+delivery|street\s+number\s+is\s+missing|shipment)\b/i,
+    regex: /\b(usps|fedex|ups|dhl|royal\s+mail|india\s*post|bluedart|dtdc|delhivery|speed\s*post|aramex)\s*[:\-]?\s*.{0,30}(tracking|deliver(y|ed)?|package|parcel|cannot\s+be\s+delivered|address\s+(incomplete|missing)|redelivery|on\s+hold|pending\s+dispatch|reschedule\s+delivery|street\s+number\s+is\s+missing|shipment)\b/i,
     explanation: (m) => `Impersonates a postal or courier organization ("${m}") to divert victim to a credential/payment portal.`,
     weight: 26
+  },
+  {
+    id: 'imp_fake_support_number',
+    category: 'IMPERSONATION',
+    severity: 'high',
+    regex: /\b(contact\s+(our\s+)?(24x7\s+|24\/7\s+|toll[\s-]free\s+)?(customer\s*(care|support)|helpline|executive|nodal\s+officer)(\s+helpline)?\s*(at|on|immediately)?\s*(\+?\d{1,3}[-\s]?)?\d{10,12}|call\s+(customer\s+care|support)\s+to\s+reverse\s+(payment|charge|amount)|helpline\s*[:\-]?\s*(\+?\d{1,3}[-\s]?)?\d{10,12})\b/i,
+    explanation: (m) => `Lures recipient into calling an unverified inbound customer support or helpline number ("${m}").`,
+    weight: 30
   },
   {
     id: 'imp_bank',
@@ -470,6 +510,21 @@ const LEGITIMATE_SIGNALS = [
     regex: /\b(will\s+never\s+ask\s+(you\s+)?for\s+your\s+password|never\s+(call|message)\s+to\s+ask\s+for\s+this\s+code|never\s+ask\s+for\s+your\s+.{0,10}(pin|password|card\s+number))\b/i,
     credit: 30,
     note: 'Explicit anti-fraud consumer protection advisory from a verified institution.'
+  },
+  {
+    regex: /\b(meeting\s+starts\s+in\s+\d+\s*(mins?|minutes?)|join\s+the\s+(zoom|teams|google\s+meet)\s+call|meeting\s+reminder\s*:|calendar\s+reminder\s*:)\b/i,
+    credit: 25,
+    note: 'Routine professional meeting or video conference alert without financial or credential requests.'
+  },
+  {
+    regex: /\b(driver\s+is\s+arriving|arriving\s+in\s+\d+\s*(mins?|minutes?)|ride\s+is\s+confirmed|otp\s+for\s+ride\s+is\s+\d{4}|flight\s+[a-z0-9]{2,3}\s*\d{1,4}\s+boarding\s+gate|boarding\s+gate\s+closes\s+in)\b/i,
+    credit: 30,
+    note: 'Standard ride-hailing arrival or airline boarding notification with operational OTP/gate status.'
+  },
+  {
+    regex: /\b(food\s+is\s+being\s+prepared|delivery\s+partner\s+is\s+on\s+the\s+way|order\s+will\s+arrive\s+by\s+\d{1,2}[:.]\d{2}|your\s+table\s+is\s+reserved\s+for)\b/i,
+    credit: 25,
+    note: 'Operational food delivery or table reservation notification.'
   }
 ];
 
